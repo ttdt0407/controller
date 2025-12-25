@@ -11,7 +11,7 @@ extern "C" {
 #define CB_NUMS 2
 
 /************************************************
- *  Encoder Properties
+ *  Variables
  ************************************************/
 
 typedef void (*callback)(void);
@@ -39,7 +39,7 @@ typedef struct
 } encoder_speed_t;
 
 /************************************************
- *  Encoder Behaviors
+ *  API
  ************************************************/
 
 void encoder_init(encoder_t *self, encoder_update_t *update);
