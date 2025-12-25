@@ -92,6 +92,10 @@ void main_count_pulses_B(void)
   }
 }
 
+/**
+ * @brief 
+ * 
+ */
 void main_measure_speed()
 {
   int16_t a_check = channel_a_update.last_pulse_update - channel_a_update.first_pulse_update;
