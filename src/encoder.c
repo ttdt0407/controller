@@ -15,7 +15,7 @@ static callback array_callback[CB_NUMS] = {NULL};
  void encoder_init(encoder_t *self, encoder_update_t *update)
  {
      memset(self, 0, sizeof(*self));
-     memset(self, 0, sizeof(*update));
+     memset(update, 0, sizeof(*update));
  }
 
 void encoder_register_callback(callback *arr)

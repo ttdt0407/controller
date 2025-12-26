@@ -32,7 +32,7 @@ void backward(void);
 void forward(void);
 void stop(void);
 
-callback main_arr[CB_NUMS] = {main_count_pulses_A, main_count_pulses_B};
+callback main_arr[] = {main_count_pulses_A, main_count_pulses_B};
 
 /************************************************
  *  API
@@ -44,6 +44,9 @@ void main_init()
     memset(&channel_b, 0, sizeof(channel_b));
     memset(&channel_a_update, 0, sizeof(channel_a_update));
     memset(&channel_b_update, 0, sizeof(channel_b_update));
+    memset(&speed_a, 0, sizeof(speed_a));
+    memset(&speed_b, 0, sizeof(speed_b));
+    memset(&measure_speed, 0, sizeof(measure_speed));
 }
 
 /**
@@ -52,12 +55,10 @@ void main_init()
  */
 void main_count_pulses_A(void)
 {
-  // Read the value of TCNT3 of timer 3
   (channel_a.counter) ? (channel_a.last_pulse = TCNT3) : (channel_a.first_pulse = TCNT3);
 
   channel_a.read_pins = PIND & B00000011;
 
-  // Read the state of encoder pulses to determine the direction
   switch (channel_a.read_pins)
   {
     case 0: case 3:
@@ -70,17 +71,16 @@ void main_count_pulses_A(void)
 }
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 void main_count_pulses_B(void)
 {
-  // Read the value of TCNT3 of timer 3
+
   (channel_b.counter) ? (channel_b.last_pulse = TCNT3) : (channel_b.first_pulse = TCNT3);
 
   channel_b.read_pins = PIND & B00000011;
 
-  // Read the state of encoder pulses to determine the direction
   switch (channel_b.read_pins)
   {
     case 0: case 3:
@@ -93,11 +93,12 @@ void main_count_pulses_B(void)
 }
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 void main_measure_speed()
 {
+  /* channel A */
   int16_t a_check = channel_a_update.last_pulse_update - channel_a_update.first_pulse_update;
 
   if (a_check > 0)
@@ -109,8 +110,12 @@ void main_measure_speed()
     speed_a.num_of_ticks = 39999 - channel_a_update.first_pulse_update + channel_a_update.last_pulse_update;
   }
 
+  /* Avoiding divided by zero */
+  if (speed_a.num_of_ticks == 0) speed_a.num_of_ticks = 1;
+
   speed_a.rpm = (float)(abs(channel_a_update.counter_update) - 1) / (speed_a.num_of_ticks) * k_value;
 
+  /* channel B */
   int16_t b_check = channel_b_update.last_pulse_update - channel_b_update.first_pulse_update;
 
   if (b_check > 0)
@@ -124,6 +129,7 @@ void main_measure_speed()
 
   speed_b.rpm = (float)(abs(channel_b_update.counter_update) - 1) / (speed_b.num_of_ticks) * k_value;
 
+  /* ensure that speed is valid */
   measure_speed.speed = (speed_a.rpm + speed_b.rpm) / 2.0;
 
   if (measure_speed.speed > 400)
@@ -135,8 +141,8 @@ void main_measure_speed()
     measure_speed.speed = 20;
   }
 
-  Serial.print("Measured speed - ");
-  Serial.println(measure_speed.speed);
+  // Serial.print("Measured speed - ");
+  // Serial.println(measure_speed.speed);
 }
 
 void set_speed()
@@ -168,6 +174,9 @@ void stop()
 ISR (TIMER3_OVF_vect)
 {
   flag_50hz = 1;
+
+  cli();
+
   channel_a_update.first_pulse_update = channel_a.first_pulse;
   channel_a_update.last_pulse_update = channel_a.last_pulse;
   channel_a_update.counter_update = channel_a.counter;
@@ -177,6 +186,8 @@ ISR (TIMER3_OVF_vect)
   channel_b_update.last_pulse_update = channel_b.last_pulse;
   channel_b_update.counter_update = channel_b.counter;
   channel_b.counter = 0;
+
+  sei();
 }
 
 // ISR (TIMER1_OVF_vect) {
@@ -186,21 +197,23 @@ ISR (TIMER3_OVF_vect)
 void setup() {
 
   Serial.begin(115200);
-  while (!Serial);
-  // Configure motor DC pins
-  pinMode(9, OUTPUT);
+
   pinMode(2, INPUT_PULLUP);
   pinMode(3, INPUT_PULLUP);
+  pinMode(5, OUTPUT);
   pinMode(6, OUTPUT);
   pinMode(7, OUTPUT);
+  pinMode(9, OUTPUT);
 
   encoder_register_callback(main_arr);
+
   attachInterrupt(digitalPinToInterrupt(2), encoder_count_handler_a, CHANGE);
   attachInterrupt(digitalPinToInterrupt(3), encoder_count_handler_b, CHANGE);
+
   timer1_setup();
   timer3_setup();
 
-  Serial.println("System initialized!");
+  main_init();
 }
 
 void loop() {
@@ -209,7 +222,6 @@ void loop() {
   {
     flag_50hz = 0;
     set_speed();
-    //analogWrite(9, 255);
     backward();
     main_measure_speed();
   }
